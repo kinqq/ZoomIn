@@ -1,6 +1,6 @@
 import http from "http";
 import express from "express";
-import WebSocket from "ws";
+import SocketIO from "socket.io";
 
 const app = express();
 
@@ -11,36 +11,43 @@ app.get("/", (_, res) => res.render("home"));
 app.get("/*", (_, res) => res.redirect("/"));
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const io = SocketIO(server);
 
-const sockets = [];
-
-wss.on("connection", (socket) => {
-    sockets.push(socket);
-    socket["nickname"] = null;
-    socket.on("open", () => {
-        console.log("Connected to Browser ✅");
-    });
-    socket.on("close", () => {
-        console.log("Disconnected From Client ⛔");
-    });
-    socket.on("message", (msg) => {
-        const message = JSON.parse(msg.toString());
-        switch (message.type) {
-            case "message":
-                sockets.forEach((sock) => {
-                    if (sock !== socket)
-                        sock.send(
-                            `${
-                                socket["nickname"]
-                                    ? socket["nickname"]
-                                    : "Anonymous"
-                            }: ${message.value}`
-                        );
-                });
-            case "nickname":
-                socket["nickname"] = message.value;
-        }
+io.on("connection", (socket) => {
+    socket.on("enter_room", (msg, onServerReceive) => {
+        console.log(msg.payload);
+        onServerReceive(msg.payload);
     });
 });
+
+// const sockets = [];
+
+// wss.on("connection", (socket) => {
+//     sockets.push(socket);
+//     socket["nickname"] = null;
+//     socket.on("open", () => {
+//         console.log("Connected to Browser ✅");
+//     });
+//     socket.on("close", () => {
+//         console.log("Disconnected From Client ⛔");
+//     });
+//     socket.on("message", (msg) => {
+//         const message = JSON.parse(msg.toString());
+//         switch (message.type) {
+//             case "message":
+//                 sockets.forEach((sock) => {
+//                     if (sock !== socket)
+//                         sock.send(
+//                             `${
+//                                 socket["nickname"]
+//                                     ? socket["nickname"]
+//                                     : "Anonymous"
+//                             }: ${message.value}`
+//                         );
+//                 });
+//             case "nickname":
+//                 socket["nickname"] = message.value;
+//         }
+//     });
+// });
 server.listen(3245);
