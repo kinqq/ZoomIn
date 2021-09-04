@@ -14,10 +14,17 @@ const server = http.createServer(app);
 const io = SocketIO(server);
 
 io.on("connection", (socket) => {
-    socket.on("enter_room", (msg, onServerReceive) => {
-        console.log(msg.payload);
-        onServerReceive(msg.payload);
+  socket.on("enter_room", (roomName, func) => {
+    socket.join(roomName);
+    func();
+    socket.to(roomName).emit("welcome");
+  });
+  socket.on("disconnecting", () => {
+    socket.rooms.forEach((room) => {
+      socket.to(room).emit("bye");
     });
+  });
+  socket.on("new_message", (msg, func) => {});
 });
 
 // const sockets = [];
@@ -50,4 +57,4 @@ io.on("connection", (socket) => {
 //         }
 //     });
 // });
-server.listen(3245);
+server.listen(3000);
