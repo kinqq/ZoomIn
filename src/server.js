@@ -1,8 +1,6 @@
 import http from "http";
 import express from "express";
-import { config } from "dotenv";
-import { instrument } from "@socket.io/admin-ui";
-import { Server } from "socket.io";
+import SocketIO from "socket.io";
 
 const app = express();
 
@@ -13,20 +11,7 @@ app.get("/", (_, res) => res.render("home"));
 app.get("/*", (_, res) => res.redirect("/"));
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ["https://admin.socket.io"],
-    credentials: true,
-  },
-});
-
-instrument(io, {
-  auth: {
-    type: "basic",
-    username: "kinqq",
-    password: process.env.ADMIN_PANNAL_PW,
-  },
-});
+const io = SocketIO(server);
 
 function publicRooms() {
   let {
