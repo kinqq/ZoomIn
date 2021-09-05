@@ -18,11 +18,14 @@ function addMessage(message) {
 function showRoom() {
   welcome.hidden = true;
   room.hidden = false;
-  const h3 = room.querySelector("h3");
-  h3.innerText = `Room ${roomName}`;
+  socket.emit("count_room", roomName);
   const msgForm = room.querySelector("#msg");
-
   msgForm.addEventListener("submit", handleMessageSubmit);
+}
+
+function changeRoomTitle(title, count = 1) {
+  const h3 = room.querySelector("h3");
+  h3.innerText = `Room ${title} (${count})`;
 }
 
 async function handleRoomSubmit(event) {
@@ -54,12 +57,31 @@ function handleNickSubmit(event) {
 }
 
 form.addEventListener("submit", handleRoomSubmit);
-socket.on("welcome", (nick) => {
+socket.on("welcome", (nick, userCount) => {
   addMessage(`${nick} Joined!`);
+  changeRoomTitle(roomName, userCount);
 });
-socket.on("bye", (nick) => {
+socket.on("bye", (nick, userCount) => {
   addMessage(`${nick} Left!`);
+  changeRoomTitle(roomName, userCount);
 });
 socket.on("new_message", (msg, nick) => {
   addMessage(`${nick}: ${msg}`);
+});
+socket.on("room_change", (rooms) => {
+  const ul = welcome.querySelector("ul");
+  ul.innerHTML = "";
+  if (!rooms.length) return;
+  rooms.forEach((room) => {
+    const button = document.createElement("button");
+    button.innerText = room;
+    button.addEventListener("click", () => {
+      welcome.querySelector("input").value = room;
+      welcome.querySelector("button").click();
+    });
+    ul.appendChild(button);
+  });
+  socket.on("count_room", (countUsers) =>
+    changeRoomTitle(roomName, countUsers)
+  );
 });

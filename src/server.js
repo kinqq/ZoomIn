@@ -1,6 +1,8 @@
 import http from "http";
 import express from "express";
 import SocketIO from "socket.io";
+import { instrument } from "@socket.io/admin-ui";
+import { Server } from "socket.io";
 
 const app = express();
 
@@ -11,20 +13,51 @@ app.get("/", (_, res) => res.render("home"));
 app.get("/*", (_, res) => res.redirect("/"));
 
 const server = http.createServer(app);
-const io = SocketIO(server);
+const io = new Server(server, {
+  cors: {
+    origin: ["https://admin.socket.io"],
+    credentials: true,
+  },
+});
+
+instrument(io, {
+  auth: false,
+});
+
+function publicRooms() {
+  let {
+    sockets: {
+      adapter: { sids, rooms },
+    },
+  } = io;
+  sids = [...sids.keys()];
+  rooms = [...rooms.keys()];
+  return rooms.filter((room) => !sids.includes(room));
+}
+
+function countUsers(roomName) {
+  return io.sockets.adapter.rooms.get(roomName)?.size;
+}
 
 io.on("connection", (socket) => {
-  console.log(io.sockets.adapter);
   socket["nick"] = "Unknown";
+  socket.emit("room_change", publicRooms());
+  socket.onAny((event) => {
+    console.log(event);
+  });
   socket.on("enter_room", (roomName, func) => {
     socket.join(roomName);
     func();
-    socket.to(roomName).emit("welcome", socket.nick);
+    socket.to(roomName).emit("welcome", socket.nick, countUsers(roomName));
+    io.sockets.emit("room_change", publicRooms());
   });
   socket.on("disconnecting", () => {
     socket.rooms.forEach((room) => {
-      socket.to(room).emit("bye", socket.nick);
+      socket.to(room).emit("bye", socket.nick, countUsers(room) - 1);
     });
+  });
+  socket.on("disconnect", () => {
+    io.sockets.emit("room_change", publicRooms());
   });
   socket.on("new_message", (msg, func) => {
     socket.rooms.forEach((room) => {
@@ -35,36 +68,9 @@ io.on("connection", (socket) => {
   socket.on("set_nick", (nick) => {
     socket["nick"] = nick;
   });
+  socket.on("count_room", (roomName) => {
+    io.sockets.emit("count_room", countUsers(roomName));
+  });
 });
 
-// const sockets = [];
-
-// wss.on("connection", (socket) => {
-//     sockets.push(socket);
-//     socket["nickname"] = null;
-//     socket.on("open", () => {
-//         console.log("Connected to Browser ✅");
-//     });
-//     socket.on("close", () => {
-//         console.log("Disconnected From Client ⛔");
-//     });
-//     socket.on("message", (msg) => {
-//         const message = JSON.parse(msg.toString());
-//         switch (message.type) {
-//             case "message":
-//                 sockets.forEach((sock) => {
-//                     if (sock !== socket)
-//                         sock.send(
-//                             `${
-//                                 socket["nickname"]
-//                                     ? socket["nickname"]
-//                                     : "Anonymous"
-//                             }: ${message.value}`
-//                         );
-//                 });
-//             case "nickname":
-//                 socket["nickname"] = message.value;
-//         }
-//     });
-// });
 server.listen(3000);
