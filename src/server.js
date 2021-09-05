@@ -1,6 +1,6 @@
 import http from "http";
 import express from "express";
-import SocketIO from "socket.io";
+import { config } from "dotenv";
 import { instrument } from "@socket.io/admin-ui";
 import { Server } from "socket.io";
 
@@ -21,7 +21,11 @@ const io = new Server(server, {
 });
 
 instrument(io, {
-  auth: false,
+  auth: {
+    type: "basic",
+    username: "kinqq",
+    password: process.env.ADMIN_PANNAL_PW,
+  },
 });
 
 function publicRooms() {
